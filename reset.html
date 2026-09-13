@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DU-ELO — Réinitialiser le mot de passe</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+         background:#08243D; color:#F2F9F5; margin:0; min-height:100vh;
+         display:flex; align-items:center; justify-content:center; padding:24px; }
+  .card { width:100%; max-width:420px; background:#0F3355; border:1px solid #1C4A6E;
+          border-radius:20px; padding:28px; }
+  h1 { font-size:22px; margin:0 0 6px; }
+  p { color:#7FA8BC; font-size:14px; line-height:1.5; margin:0 0 20px; }
+  label { display:block; font-size:13px; color:#7FA8BC; margin:14px 0 6px; }
+  input { width:100%; box-sizing:border-box; padding:13px 14px; border-radius:12px;
+          border:1px solid #1C4A6E; background:#08243D; color:#F2F9F5; font-size:16px; }
+  button { width:100%; margin-top:22px; padding:14px; border:none; border-radius:12px;
+           background:#3E8FD0; color:#08243D; font-size:16px; font-weight:700; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:default; }
+  .msg { margin-top:16px; font-size:14px; text-align:center; }
+  .ok { color:#5FD08A; }
+  .err { color:#E8737D; }
+  .brand { font-weight:800; letter-spacing:1px; }
+  .brand span { color:#3E8FD0; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1 class="brand">DU<span>ELO</span></h1>
+  <p id="intro">Choisis ton nouveau mot de passe.</p>
+
+  <div id="form">
+    <label for="pw">Nouveau mot de passe</label>
+    <input id="pw" type="password" autocomplete="new-password" placeholder="Au moins 6 caractères">
+    <label for="pw2">Confirme le mot de passe</label>
+    <input id="pw2" type="password" autocomplete="new-password" placeholder="Retape le mot de passe">
+    <button id="btn">Enregistrer</button>
+  </div>
+
+  <div id="msg" class="msg"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = 'https://jrgmsorcezjczfgvccgt.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpyZ21zb3JjZXpqY3pmZ3ZjY2d0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2NTU3NzIsImV4cCI6MjEwMTIzMTc3Mn0.AXcUBanyh1lwtL5HXwCRaP8sj6ufXvegOhw9Ipj-2nY';
+
+  const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
+    auth: { detectSessionInUrl: true, flowType: 'implicit' }
+  });
+
+  const msg = document.getElementById('msg');
+  const form = document.getElementById('form');
+  const btn = document.getElementById('btn');
+
+  function show(text, cls) { msg.textContent = text; msg.className = 'msg ' + (cls||''); }
+
+  // Vérifie qu'on a bien une session de récupération (venue du lien email).
+  window.addEventListener('load', async () => {
+    try {
+      const { data } = await client.auth.getSession();
+      // getSession peut être vide au tout premier instant ; on écoute l'événement.
+      client.auth.onAuthStateChange((event, session) => {
+        if (event === 'PASSWORD_RECOVERY' || session) {
+          // ok, prêt à changer le mot de passe
+        }
+      });
+    } catch (e) {}
+  });
+
+  btn.addEventListener('click', async () => {
+    const pw = document.getElementById('pw').value;
+    const pw2 = document.getElementById('pw2').value;
+    if (pw.length < 6) { show('Le mot de passe doit faire au moins 6 caractères.', 'err'); return; }
+    if (pw !== pw2) { show('Les deux mots de passe ne correspondent pas.', 'err'); return; }
+    btn.disabled = true; show('Enregistrement…');
+    try {
+      const { error } = await client.auth.updateUser({ password: pw });
+      if (error) { show('Erreur : ' + error.message + ' — Le lien a peut-être expiré, redemande un email depuis l\'app.', 'err'); btn.disabled = false; return; }
+      form.style.display = 'none';
+      document.getElementById('intro').textContent = '';
+      show('Mot de passe modifié ✅ Tu peux retourner dans l\'app DU-ELO et te connecter.', 'ok');
+    } catch (e) {
+      show('Erreur inattendue. Redemande un email de réinitialisation depuis l\'app.', 'err');
+      btn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
